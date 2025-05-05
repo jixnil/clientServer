@@ -15,15 +15,12 @@ public class SocketClient {
              PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
              BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
-            // Envoyer le JSON avec println (ajoute \n automatiquement)
             writer.println(json);
 
-            // Lire la réponse du serveur
             String response = reader.readLine();
             System.out.println("Réponse serveur : " + response);
             System.out.println("JSON envoyé : " + json);
 
-            // Vérification de succès dans la réponse
             return response != null && (response.contains("succès") || response.contains("success") || response.contains("ok") || response.contains("reçu"));
         } catch (IOException e) {
             System.err.println("Erreur d'envoi : " + e.getMessage());
@@ -36,11 +33,9 @@ public class SocketClient {
              PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
              BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
-            // Envoyer la requête JSON
             writer.println(json);
 
-            // Lire la réponse JSON (la liste de clients)
-            String response = reader.readLine(); // assume one-line JSON response
+            String response = reader.readLine();
             System.out.println("Réponse du serveur : " + response);
 
             Type listType = new TypeToken<List<Client>>(){}.getType();
