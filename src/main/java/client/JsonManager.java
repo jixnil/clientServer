@@ -1,9 +1,8 @@
 package client;
 
 import com.google.gson.Gson;
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
+
+import java.io.*;
 import java.nio.file.*;
 
 public class JsonManager {
@@ -19,6 +18,29 @@ public class JsonManager {
             writer.write(json);
         }
     }
+    public static void saveRequestAsJson(Request request) {
+        try {
+            File dir = new File("pending");
+            if (!dir.exists()) dir.mkdirs();
+
+            String filename = request.getAction() + "_" + request.getClient().getnClient() + "_" + System.currentTimeMillis() + ".json";
+            File file = new File(dir, filename);
+
+            try (FileWriter writer = new FileWriter(file)) {
+                Gson gson = new Gson();
+                gson.toJson(request, writer);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    public static Request readRequestFromFile(File file) throws IOException {
+        try (FileReader reader = new FileReader(file)) {
+            Gson gson = new Gson();
+            return gson.fromJson(reader, Request.class);
+        }
+    }
+
 
     public static String readJsonFromFile(String filename) throws IOException {
         return new String(Files.readAllBytes(Paths.get(filename)));

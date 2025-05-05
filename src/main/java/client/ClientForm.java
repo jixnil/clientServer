@@ -146,6 +146,7 @@ public class ClientForm extends JFrame {
                 @Override
                 protected Void doInBackground() throws Exception {
                     if (NetworkChecker.isServerAvailable()) {
+                        JsonManager.saveRequestAsJson(new Request("add", c));
                         boolean success = SocketClient.sendJsonToServer(json);
                         if (success) {
                             showStatus("Opération " + action + " réussie.", new Color(0, 128, 0));
@@ -196,13 +197,31 @@ public class ClientForm extends JFrame {
             showStatus("Impossible de charger les clients.", Color.RED);
         }
     }
+    private void updateStatus(boolean isConnected) {
+        if (isConnected) {
+            lblStatut.setText("🟢 Connecté");
+            lblStatut.setForeground(Color.GREEN.darker());
+        } else {
+            lblStatut.setText("🟠 Hors ligne : données stockées localement.");
+            lblStatut.setForeground(Color.ORANGE.darker());
+        }
+    }
 
-    public static void main(String[] args) {
+    public void main(String[] args) {
         try {
             UIManager.setLookAndFeel(new FlatLightLaf());
         } catch (Exception e) {
             e.printStackTrace();
         }
         SwingUtilities.invokeLater(ClientForm::new);
+        Timer timer = new Timer(5000, e -> {
+            boolean isConnected = NetworkChecker.isServerAvailable();
+            updateStatus(isConnected);
+            if (isConnected) {
+                PendingSyncManager.synchronizePendingRequests();
+            }
+        });
+        timer.start();
+
     }
 }
