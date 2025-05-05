@@ -5,10 +5,10 @@ import com.formdev.flatlaf.FlatLightLaf;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class ClientForm extends JFrame {
 
@@ -16,7 +16,7 @@ public class ClientForm extends JFrame {
     private JLabel lblStatut;
     private JTable table;
     private ClientTableModel tableModel;
-    private List<Client> clients = new ArrayList<>();
+    private final List<Client> clients = new ArrayList<>();
 
     public ClientForm() {
         setTitle("Gestion des Clients");
@@ -24,15 +24,50 @@ public class ClientForm extends JFrame {
         setSize(700, 500);
         setLocationRelativeTo(null);
 
-        // Panel principal avec padding
-        JPanel contentPane = new JPanel();
-        contentPane.setLayout(new BorderLayout(10, 10));
+        initUI();
+        chargerClients();
+        initTimer();
+
+        setVisible(true);
+    }
+
+    private void initUI() {
+        JPanel contentPane = new JPanel(new BorderLayout(10, 10));
         contentPane.setBorder(new EmptyBorder(10, 10, 10, 10));
         setContentPane(contentPane);
 
-        // Panel formulaire
-        JPanel formPanel = new JPanel();
-        formPanel.setLayout(new GridLayout(4, 2, 10, 10));
+        // Partie haute : formulaire + boutons
+        JPanel topPanel = new JPanel(new BorderLayout(10, 10));
+        topPanel.add(initFormPanel(), BorderLayout.CENTER);
+        topPanel.add(initButtonPanel(), BorderLayout.SOUTH);
+
+        contentPane.add(topPanel, BorderLayout.NORTH);
+
+        // Table des clients
+        tableModel = new ClientTableModel(clients);
+        table = new JTable(tableModel);
+        table.setRowHeight(24);
+        table.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        table.setAutoCreateRowSorter(true);
+
+        table.getSelectionModel().addListSelectionListener(e -> {
+            int row = table.getSelectedRow();
+            if (row >= 0) {
+                Client c = tableModel.getClientAt(table.convertRowIndexToModel(row));
+                remplirChamps(c);
+            }
+        });
+
+        contentPane.add(new JScrollPane(table), BorderLayout.CENTER);
+
+        // Statut
+        lblStatut = new JLabel("Statut : ");
+        lblStatut.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        contentPane.add(lblStatut, BorderLayout.SOUTH);
+    }
+
+    private JPanel initFormPanel() {
+        JPanel formPanel = new JPanel(new GridLayout(4, 2, 10, 10));
         formPanel.setBorder(BorderFactory.createTitledBorder("Informations Client"));
 
         txtId = new JTextField();
@@ -40,7 +75,7 @@ public class ClientForm extends JFrame {
         txtAdresse = new JTextField();
         txtSolde = new JTextField();
 
-        formPanel.add(new JLabel("ID :"));
+        formPanel.add(new JLabel("Numéro du client:"));
         formPanel.add(txtId);
         formPanel.add(new JLabel("Nom :"));
         formPanel.add(txtNom);
@@ -49,67 +84,26 @@ public class ClientForm extends JFrame {
         formPanel.add(new JLabel("Solde :"));
         formPanel.add(txtSolde);
 
-        // Panel boutons
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 5));
-        buttonPanel.setBorder(BorderFactory.createTitledBorder("Actions"));
+        return formPanel;
+    }
 
-        buttonPanel.add(createButton("Ajouter", "add"));
-        buttonPanel.add(createButton("Modifier", "update"));
-        buttonPanel.add(createButton("Supprimer", "delete"));
-        buttonPanel.add(createButton("Rafraîchir", "list"));
+    private JPanel initButtonPanel() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 5));
+        panel.setBorder(BorderFactory.createTitledBorder("Actions"));
 
-        // Panel du haut : formulaire + boutons
-        JPanel topPanel = new JPanel(new BorderLayout(10, 10));
-        topPanel.add(formPanel, BorderLayout.CENTER);
-        topPanel.add(buttonPanel, BorderLayout.SOUTH);
+        panel.add(createButton("Ajouter", "add"));
+        panel.add(createButton("Modifier", "update"));
+        panel.add(createButton("Supprimer", "delete"));
+        panel.add(createButton("Rafraîchir", "list"));
 
-        contentPane.add(topPanel, BorderLayout.NORTH);
-
-        // Label statut
-        lblStatut = new JLabel("Statut : ");
-        lblStatut.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        lblStatut.setForeground(Color.DARK_GRAY);
-        contentPane.add(lblStatut, BorderLayout.SOUTH);
-
-        // Table des clients
-        tableModel = new ClientTableModel(clients);
-        table = new JTable(tableModel);
-        table.setRowHeight(24);
-        table.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        table.setAutoCreateRowSorter(true);
-        JScrollPane scrollPane = new JScrollPane(table);
-
-        contentPane.add(scrollPane, BorderLayout.CENTER);
-
-        // Sélection dans la table
-        table.getSelectionModel().addListSelectionListener(e -> {
-            int row = table.getSelectedRow();
-            if (row >= 0) {
-                Client c = tableModel.getClientAt(table.convertRowIndexToModel(row));
-                txtId.setText(String.valueOf(c.getnClient()));
-                txtNom.setText(c.getNom());
-                txtAdresse.setText(c.getAdresse());
-                txtSolde.setText(String.valueOf(c.getSolde()));
-            }
-        });
-
-        setVisible(true);
-        chargerClients();
-        Timer timer = new Timer(5000, e -> {
-            boolean isConnected = NetworkChecker.isServerAvailable();
-            updateStatus(isConnected);
-            if (isConnected) {
-                PendingSyncManager.synchronizePendingRequests();
-            }
-        });
-        timer.start();
+        return panel;
     }
 
     private JButton createButton(String text, String action) {
         JButton btn = new JButton(text);
         btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
         btn.addActionListener(e -> {
-            if (action.equals("list")) {
+            if ("list".equals(action)) {
                 chargerClients();
             } else {
                 envoyerClient(action);
@@ -118,55 +112,64 @@ public class ClientForm extends JFrame {
         return btn;
     }
 
-    private void envoyerClient(String action) {
-        try {
-            String idText = txtId.getText().trim();
-            String nom = txtNom.getText().trim();
-            String adresse = txtAdresse.getText().trim();
-            String soldeText = txtSolde.getText().trim();
+    private void remplirChamps(Client c) {
+        txtId.setText(String.valueOf(c.getnClient()));
+        txtNom.setText(c.getNom());
+        txtAdresse.setText(c.getAdresse());
+        txtSolde.setText(String.valueOf(c.getSolde()));
+    }
 
-            if (idText.isEmpty() || nom.isEmpty() || adresse.isEmpty() || soldeText.isEmpty()) {
-                showStatus("Erreur : Tous les champs doivent être remplis.", Color.RED);
+    private void clearForm() {
+        txtId.setText("");
+        txtNom.setText("");
+        txtAdresse.setText("");
+        txtSolde.setText("");
+    }
+
+    private void showStatus(String message, Color color) {
+        lblStatut.setText("Statut : " + message);
+        lblStatut.setForeground(color);
+    }
+
+    private void envoyerClient(String action) {
+        String idText = txtId.getText().trim();
+        String nom = txtNom.getText().trim();
+        String adresse = txtAdresse.getText().trim();
+        String soldeText = txtSolde.getText().trim();
+
+        if (idText.isEmpty() || nom.isEmpty() || adresse.isEmpty() || soldeText.isEmpty()) {
+            showStatus("Erreur : Tous les champs doivent être remplis.", Color.RED);
+            return;
+        }
+
+        if ("delete".equals(action)) {
+            int confirm = JOptionPane.showConfirmDialog(
+                    this,
+                    "Êtes-vous sûr de vouloir supprimer ce client ?",
+                    "Confirmation de suppression",
+                    JOptionPane.YES_NO_OPTION
+            );
+            if (confirm != JOptionPane.YES_OPTION) {
+                showStatus("Suppression annulée par l'utilisateur.", Color.GRAY);
                 return;
             }
-            if (action.equals("delete")) {
-                int confirm = JOptionPane.showConfirmDialog(
-                        this,
-                        "Êtes-vous sûr de vouloir supprimer ce client ?",
-                        "Confirmation de suppression",
-                        JOptionPane.YES_NO_OPTION
-                );
-                if (confirm != JOptionPane.YES_OPTION) {
-                    showStatus("Suppression annulée par l'utilisateur.", Color.GRAY);
-                    return;
-                }
-            }
+        }
 
-
+        try {
             int id = Integer.parseInt(idText);
             double solde = Double.parseDouble(soldeText);
-
             Client c = new Client(id, nom, adresse, solde);
             String json = new Gson().toJson(new Request(action, c));
-            System.out.println("JSON envoyé : " + json);
 
             SwingWorker<Void, Void> worker = new SwingWorker<>() {
                 @Override
-                protected Void doInBackground() throws Exception {
+                protected Void doInBackground() {
                     if (NetworkChecker.isServerAvailable()) {
-                        boolean success = SocketClient.sendJsonToServer(json);
-                        if (success) {
-                            showStatus("Opération " + action + " réussie.", new Color(0, 128, 0));
-                            chargerClients();
-                        } else {
-                            JsonManager.saveRequestAsJson(new Request(action, c));  // Sauvegarde complète
-                            showStatus("Échec réseau temporaire : données sauvegardées.", Color.ORANGE);
-                        }
+                        String response = SocketClient.sendJsonToServer(json);
+                        handleServerResponse(response, action, c);
                     } else {
-                        JsonManager.saveRequestAsJson(new Request(action, c));  // Sauvegarde complète
-                        showStatus("Mode hors ligne : données enregistrées localement.", Color.ORANGE);
+                        handleOfflineMode(action, c);
                     }
-
                     return null;
                 }
 
@@ -176,24 +179,44 @@ public class ClientForm extends JFrame {
                 }
             };
             worker.execute();
-        } catch (NumberFormatException ex) {
-            showStatus("Erreur de format : champs numériques invalides.", Color.RED);
-        } catch (Exception ex) {
-            showStatus("Erreur : " + ex.getMessage(), Color.RED);
-            ex.printStackTrace();
+        } catch (NumberFormatException e) {
+            showStatus("Erreur : Numéro ou solde invalide.", Color.RED);
         }
     }
 
-    private void showStatus(String message, Color color) {
-        lblStatut.setText("Statut : " + message);
-        lblStatut.setForeground(color);
+    private void handleServerResponse(String response, String action, Client client) {
+        if (response != null) {
+            try {
+                Map<String, String> map = new Gson().fromJson(response, Map.class);
+                String status = map.get("status");
+                String message = map.get("message");
+
+                if ("success".equalsIgnoreCase(status)) {
+                    showStatus(message, new Color(0, 128, 0));
+                    chargerClients();
+                } else {
+                    showStatus("Erreur : " + message, Color.RED);
+                }
+
+                showPopup("Message du serveur", message,
+                        "success".equalsIgnoreCase(status) ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.ERROR_MESSAGE);
+            } catch (Exception e) {
+                showStatus("Réponse du serveur invalide.", Color.RED);
+                showPopup("Erreur", "Réponse du serveur invalide.", JOptionPane.ERROR_MESSAGE);
+            }
+        } else {
+            handleOfflineMode(action, client);
+        }
     }
 
-    private void clearForm() {
-        txtId.setText("");
-        txtNom.setText("");
-        txtAdresse.setText("");
-        txtSolde.setText("");
+    private void handleOfflineMode(String action, Client client) {
+        JsonManager.saveRequestAsJson(new Request(action, client));
+        showStatus("Mode hors ligne : données enregistrées localement.", Color.ORANGE);
+        showPopup("Mode Hors Ligne", "Connexion échouée.\nDonnées sauvegardées localement.", JOptionPane.WARNING_MESSAGE);
+    }
+
+    private void showPopup(String title, String message, int type) {
+        SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this, message, title, type));
     }
 
     private void chargerClients() {
@@ -207,13 +230,22 @@ public class ClientForm extends JFrame {
         }
     }
 
+    private void initTimer() {
+        Timer timer = new Timer(5000, e -> {
+            boolean isConnected = NetworkChecker.isServerAvailable();
+            updateStatus(isConnected);
+            if (isConnected) {
+                PendingSyncManager.synchronizePendingRequests();
+            }
+        });
+        timer.start();
+    }
+
     private void updateStatus(boolean isConnected) {
         if (isConnected) {
-            lblStatut.setText("🟢 Connecté");
-            lblStatut.setForeground(Color.GREEN.darker());
+            showStatus("🟢 Connecté", Color.GREEN.darker());
         } else {
-            lblStatut.setText("🟠 Hors ligne : données stockées localement.");
-            lblStatut.setForeground(Color.ORANGE.darker());
+            showStatus("🟠 Hors ligne : données stockées localement.", Color.ORANGE.darker());
         }
     }
 
@@ -223,5 +255,7 @@ public class ClientForm extends JFrame {
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+        SwingUtilities.invokeLater(ClientForm::new);
     }
 }

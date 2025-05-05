@@ -23,7 +23,7 @@ public class PendingSyncManager {
                 Request req = gson.fromJson(reader, Request.class);
                 String json = gson.toJson(req);
 
-                boolean success = SocketClient.sendJsonToServer(json);
+                boolean success = Boolean.parseBoolean(SocketClient.sendJsonToServer(json));
                 if (success) {
                     JsonManager.deleteJsonFile(String.valueOf(file));  // supprime après envoi réussi
                     System.out.println("Synchronisé et supprimé : " + file.getName());
