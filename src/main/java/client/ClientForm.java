@@ -94,7 +94,15 @@ public class ClientForm extends JFrame {
         });
 
         setVisible(true);
-        chargerClients(); // chargement initial
+        chargerClients();
+        Timer timer = new Timer(5000, e -> {
+            boolean isConnected = NetworkChecker.isServerAvailable();
+            updateStatus(isConnected);
+            if (isConnected) {
+                PendingSyncManager.synchronizePendingRequests();
+            }
+        });
+        timer.start();
     }
 
     private JButton createButton(String text, String action) {
@@ -146,18 +154,19 @@ public class ClientForm extends JFrame {
                 @Override
                 protected Void doInBackground() throws Exception {
                     if (NetworkChecker.isServerAvailable()) {
-                        JsonManager.saveRequestAsJson(new Request("add", c));
                         boolean success = SocketClient.sendJsonToServer(json);
                         if (success) {
                             showStatus("Opération " + action + " réussie.", new Color(0, 128, 0));
                             chargerClients();
                         } else {
-                            showStatus("Échec de l'envoi.", Color.RED);
+                            JsonManager.saveRequestAsJson(new Request(action, c));  // Sauvegarde complète
+                            showStatus("Échec réseau temporaire : données sauvegardées.", Color.ORANGE);
                         }
                     } else {
-                        JsonManager.saveClientAsJson(c);
+                        JsonManager.saveRequestAsJson(new Request(action, c));  // Sauvegarde complète
                         showStatus("Mode hors ligne : données enregistrées localement.", Color.ORANGE);
                     }
+
                     return null;
                 }
 
@@ -197,6 +206,7 @@ public class ClientForm extends JFrame {
             showStatus("Impossible de charger les clients.", Color.RED);
         }
     }
+
     private void updateStatus(boolean isConnected) {
         if (isConnected) {
             lblStatut.setText("🟢 Connecté");
@@ -207,21 +217,11 @@ public class ClientForm extends JFrame {
         }
     }
 
-    public void main(String[] args) {
+    public static void main(String[] args) {
         try {
             UIManager.setLookAndFeel(new FlatLightLaf());
         } catch (Exception e) {
             e.printStackTrace();
         }
-        SwingUtilities.invokeLater(ClientForm::new);
-        Timer timer = new Timer(5000, e -> {
-            boolean isConnected = NetworkChecker.isServerAvailable();
-            updateStatus(isConnected);
-            if (isConnected) {
-                PendingSyncManager.synchronizePendingRequests();
-            }
-        });
-        timer.start();
-
     }
 }

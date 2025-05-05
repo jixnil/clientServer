@@ -18,22 +18,22 @@ public class JsonManager {
             writer.write(json);
         }
     }
-    public static void saveRequestAsJson(Request request) {
+    public static void saveRequestAsJson(Request req) {
         try {
-            File dir = new File("pending");
+            File dir = new File("pending/");
             if (!dir.exists()) dir.mkdirs();
 
-            String filename = request.getAction() + "_" + request.getClient().getnClient() + "_" + System.currentTimeMillis() + ".json";
-            File file = new File(dir, filename);
-
-            try (FileWriter writer = new FileWriter(file)) {
-                Gson gson = new Gson();
-                gson.toJson(request, writer);
+            String filename = "pending/" + req.getAction() + "_" + req.getClient().getnClient() + "_" + System.currentTimeMillis() + ".json";
+            Gson gson = new Gson();
+            try (FileWriter writer = new FileWriter(filename)) {
+                gson.toJson(req, writer);
             }
+            System.out.println("Requête enregistrée localement : " + filename);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
+
     public static Request readRequestFromFile(File file) throws IOException {
         try (FileReader reader = new FileReader(file)) {
             Gson gson = new Gson();

@@ -3,25 +3,34 @@ package client;
 import com.google.gson.Gson;
 
 import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 
 public class PendingSyncManager {
 
     public static void synchronizePendingRequests() {
-        File dir = new File("pending");
-        if (!dir.exists()) return;
+        System.out.println("Tentative de synchronisation des fichiers JSON...");
+        File dir = new File("pending/");
+        if (!dir.exists() || !dir.isDirectory()) return;
 
         File[] files = dir.listFiles((d, name) -> name.endsWith(".json"));
         if (files == null) return;
 
+
         for (File file : files) {
-            try {
-                Request req = JsonManager.readRequestFromFile(file);
-                boolean success = SocketClient.sendJsonToServer(new Gson().toJson(req));
+            try (FileReader reader = new FileReader(file)) {
+                Gson gson = new Gson();
+                Request req = gson.fromJson(reader, Request.class);
+                String json = gson.toJson(req);
+
+                boolean success = SocketClient.sendJsonToServer(json);
                 if (success) {
-                    file.delete();
-                    System.out.println("✅ Synchro OK : " + file.getName());
+                    JsonManager.deleteJsonFile(String.valueOf(file));  // supprime après envoi réussi
+                    System.out.println("Synchronisé et supprimé : " + file.getName());
+                } else {
+                    System.out.println("Échec de synchronisation : " + file.getName());
                 }
-            } catch (Exception e) {
+            } catch (IOException e) {
                 e.printStackTrace();
             }
         }

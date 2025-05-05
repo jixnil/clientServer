@@ -6,7 +6,21 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.List;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import com.google.gson.Gson;
+import java.io.*;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 public class ServerApp {
+
+    // Map pour suivre la fréquence des erreurs
+    private static Map<String, Long> errorTimestamps = new HashMap<>();
 
     public static void startServer() throws Exception {
         ServerSocket serverSocket = new ServerSocket(12345);
@@ -21,7 +35,7 @@ public class ServerApp {
     private static void handleClient(Socket socket) {
         try (
                 BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                PrintWriter writer = new PrintWriter(socket.getOutputStream(), true) // auto-flush
+                PrintWriter writer = new PrintWriter(socket.getOutputStream(), true)
         ) {
             Gson gson = new Gson();
 
@@ -29,8 +43,7 @@ public class ServerApp {
             String json = reader.readLine();
 
             if (json == null || json.trim().isEmpty()) {
-                System.out.println("Erreur : JSON vide ou null reçu.");
-                writer.println("{\"status\":\"error\",\"message\":\"Requête vide\"}");
+                handleError("Erreur : JSON vide ou null reçu.", writer);
                 return;
             }
 
@@ -39,11 +52,11 @@ public class ServerApp {
 
             if (req == null || req.getAction() == null ||
                     (!"list".equals(req.getAction()) && req.getClient() == null)) {
-                System.out.println("Erreur : Requête mal formée.");
-                writer.println("{\"status\":\"error\",\"message\":\"Requête mal formée\"}");
+                handleError("Erreur : Requête mal formée.", writer);
                 return;
             }
 
+            // Processus principal pour les actions
             String action = req.getAction();
             Client client = req.getClient();
             String responseJson;
@@ -88,7 +101,21 @@ public class ServerApp {
         }
     }
 
+    private static void handleError(String errorMessage, PrintWriter writer) {
+        long currentTime = System.currentTimeMillis();
+        String key = errorMessage; // Clé basée sur le message d'erreur
+
+        // Vérifier si l'erreur a été enregistrée récemment
+        if (!errorTimestamps.containsKey(key) || currentTime - errorTimestamps.get(key) > 300000) { // 5 minutes
+            System.out.println(errorMessage);
+            errorTimestamps.put(key, currentTime);
+        }
+        writer.println("{\"status\":\"error\",\"message\":\"" + errorMessage + "\"}");
+    }
+
     public static void main(String[] args) throws Exception {
-        startServer();
+        startServer(); // Démarre le serveur
     }
 }
+
+
