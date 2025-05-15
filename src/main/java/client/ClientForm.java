@@ -194,6 +194,11 @@ public class ClientForm extends JFrame {
                 if ("success".equalsIgnoreCase(status)) {
                     showStatus(message, new Color(0, 128, 0));
                     chargerClients();
+
+                    if ("delete".equals(action)) {
+                        JsonManager.deleteDuplicateJsonFiles(String.valueOf(client.getnClient()));
+                    }
+
                 } else {
                     showStatus("Erreur : " + message, Color.RED);
                 }
@@ -208,6 +213,7 @@ public class ClientForm extends JFrame {
             handleOfflineMode(action, client);
         }
     }
+
 
     private void handleOfflineMode(String action, Client client) {
         JsonManager.saveRequestAsJson(new Request(action, client));

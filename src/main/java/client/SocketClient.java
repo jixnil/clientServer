@@ -17,7 +17,7 @@ public class SocketClient {
 
             writer.println(json);
 
-            String response = reader.readLine();  // Lire la réponse du serveur
+            String response = reader.readLine();
             System.out.println("JSON envoyé : " + json);
             System.out.println("Réponse serveur : " + response);
 

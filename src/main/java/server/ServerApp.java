@@ -1,5 +1,6 @@
 package server;
 
+import client.JsonManager;
 import com.google.gson.Gson;
 import java.io.*;
 import java.net.ServerSocket;
@@ -55,8 +56,31 @@ public class ServerApp {
 
             switch (action) {
                 case "add":
-                    DatabaseManager.insertClient(client);
-                    responseJson = "{\"status\":\"success\",\"message\":\"Client ajouté dans la base de donnees\"}";
+                    try {
+                        DatabaseManager.insertClient(client);
+                        responseJson = "{\"status\":\"success\",\"message\":\"Client ajouté dans la base de donnees\"}";
+
+                        // Supprimer le fichier JSON s’il existe après insertion
+                        String jsonFile = "pending/client_" + client.getnClient() + ".json";
+                        JsonManager.deleteJsonFile(jsonFile);
+                    } catch (Exception ex) {
+                        if (ex.getMessage().contains("duplicate")) {
+                            responseJson = "{\"status\":\"error\",\"message\":\"Clé dupliquée détectée pour le client n°" + client.getnClient() + "\"}";
+                            System.out.println("[ALERTE] Duplicate key détectée pour le client : " + client.getnClient());
+
+                            // Supprimer tous les fichiers JSON avec ce client
+                            File folder = new File(JsonManager.JSON_DIR);
+                            for (File file : folder.listFiles()) {
+                                if (file.getName().contains("client_" + client.getnClient())) {
+                                    JsonManager.deleteJsonFile(file.getAbsolutePath());
+                                    System.out.println("Fichier dupliqué supprimé : " + file.getName());
+                                }
+                            }
+                        } else {
+                            responseJson = "{\"status\":\"error\",\"message\":\"Erreur lors de l'ajout du client numero  client dupliqer\"}";
+                        }
+                    }
+
                     break;
                 case "update":
                     DatabaseManager.updateClient(client);

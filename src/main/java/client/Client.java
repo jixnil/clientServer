@@ -13,6 +13,13 @@ public class Client {
         this.solde = solde;
     }
 
+
+    public class ResponseWrapper {
+        public String status;
+        public String message;
+    }
+
+
     // Getters et setters
     public int getnClient() { return nClient; }
     public String getNom() { return nom; }
